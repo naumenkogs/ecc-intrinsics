@@ -3,26 +3,27 @@
 #include <x86intrin.h>
 #include <time.h>
 
-uint64_t mul(uint64_t a, uint64_t b, __m128i lower_bits_mask, __m128i low_modulo) {
+
+uint64_t mul(uint64_t a, uint64_t b) {
+    const __m128i LOWER_BITS_MASK = _mm_set_epi64x(0, -1);
+    const uint64_t LOW_POLY = ((uint64_t)1 << 4) | (1 << 3) | (1 << 1) | 1;
+    const __m128i LOW_MODULO = _mm_cvtsi64_si128(LOW_POLY);
+
     __m128i a1 = _mm_cvtsi64_si128(a);
     __m128i b1 = _mm_cvtsi64_si128(b);
     
     __m128i product1 = _mm_clmulepi64_si128(a1, b1, 0x00);
-    __m128i result = _mm_and_si128(product1, lower_bits_mask);
+    __m128i result = _mm_and_si128(product1, LOWER_BITS_MASK);
     
-    __m128i product2 = _mm_clmulepi64_si128(low_modulo, product1, 0xF2);
-    result = _mm_xor_si128(result, _mm_and_si128(product2, lower_bits_mask));
-    __m128i product3 = _mm_clmulepi64_si128(low_modulo, product2, 0xF2);
+    __m128i product2 = _mm_clmulepi64_si128(LOW_MODULO, product1, 0xF2);
+    result = _mm_xor_si128(result, _mm_and_si128(product2, LOWER_BITS_MASK));
+    __m128i product3 = _mm_clmulepi64_si128(LOWER_BITS_MASK, product2, 0xF2);
     
     result = _mm_xor_si128(result, product3);
     return _mm_cvtsi128_si64(result);
 }
 
 void measure_mul_time(int tries) {
-    __m128i lower_bits_mask = _mm_cvtsi64_si128(UINT64_MAX);
-    uint64_t low_poly = ((uint64_t)1 << 4) | (1 << 3) | (1 << 1) | 1;
-    __m128i low_modulo = _mm_cvtsi64_si128(low_poly);
-    
     uint64_t a = (uint64_t)(1) << 33;
     uint64_t b = (uint64_t)(1) << 33;
     
@@ -32,7 +33,7 @@ void measure_mul_time(int tries) {
     for (int try = 0; try < tries; try++) {
         start = clock() ;
         for (int i = 0; i < n; i++) {
-            a = mul(a, b, lower_bits_mask, low_modulo);
+            a = mul(a, b);
         }
         end = clock();
         double elapsed_time = (end-start)/(double)CLOCKS_PER_SEC ;
