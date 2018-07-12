@@ -1,9 +1,8 @@
 #include <stdio.h>
-#include <inttypes.h>
 #include <x86intrin.h>
 #include <time.h>
-#include <assert.h>
 
+#include "mul.h"
 
 uint64_t mul(uint64_t a, uint64_t b) {
     const __m128i LOW_MODULO = _mm_set_epi64x(0, ((uint64_t)1 << 4) | (1 << 3) | (1 << 1) | 1);
@@ -38,11 +37,5 @@ void measure_mul_time(int tries) {
         double elapsed_time = (end-start)/(double)CLOCKS_PER_SEC ;
         total_times += n / elapsed_time;
     }
-    printf("Average times per 1 second: %llu\n", (uint64_t)(total_times / tries));
-}
-
-int main(int argc, const char * argv[]) {
-    measure_mul_time(100);
-    assert(mul((uint64_t)(1) << 33, (uint64_t)(1) << 33) == 108);
-    return 0;
+    printf("Average mul times per 1 second: %llu\n", (uint64_t)(total_times / tries));
 }
