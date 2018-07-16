@@ -1,30 +1,21 @@
+#include <stdlib.h>
+#include <time.h>
 #include <stdio.h>
+
 #include "mul.h"
 #include "syndrome.h"
-#include <assert.h>
-#include <inttypes.h>
-#include <stdlib.h>
-
+#include "inverse.h"
+#include "tests.h"
 
 int main(int argc, const char * argv[]) {
-    assert(mul((uint64_t)(1) << 33, (uint64_t)(1) << 33) == 108);
-    int set_size = 3;
-    int syndromes = set_size * 2;
-    uint64_t set[] = {0, 2, 3};
-    uint64_t* odd_syndromes = find_odd_syndromes(set, set_size, syndromes / 2);
+    srand(time(NULL));
+    test_full_bch();
     
-    uint64_t all_syndromes[syndromes];
-    reconstruct_all_syndromes(odd_syndromes, syndromes / 2, all_syndromes);
-    uint64_t lambdas[syndromes];
-    decode_syndromes(all_syndromes, syndromes, lambdas);
-    
-    printf("Result: \n");
-    for (int i = 0; i < syndromes; i++) {
-        printf("%llu ", lambdas[i]);
-    }
-    printf("\n");
+    int transactions = 1000;
 //    measure_mul_time(100);
-//    measure_syn_time(10, 100);
+//    measure_square_time(100);
+    measure_calc_syn_time(transactions, 10);
+    measure_decode_syn_time(transactions, 10);
 
 
     return 0;

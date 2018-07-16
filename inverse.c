@@ -3,16 +3,29 @@
 #include "mul.h"
 
 uint64_t inverse(uint64_t a) {
-    uint64_t res = a;
-    // 5 iterations: 3, 7, 15, 31, 62
+    const int squares1[] = {1, 2, 4, 8, 16};
+    const int squares2[] = {4, 8, 16, 32};
+    uint64_t powers[5];
+    uint64_t cur_element = a;
+    // iterations: p2, p4, p8, p16, p32
     for (int i = 0; i < 5; i++) {
-        uint64_t old_res = res;
-        for (int j = 0; j < i + 1; j++) {
+        uint64_t prev_element = cur_element;
+        for (int j = 0; j < squares1[i]; j++) {
+            cur_element = mul(cur_element, cur_element);
+        }
+        cur_element = mul(cur_element, prev_element);
+        powers[i] = cur_element;
+    }
+    uint64_t res = mul(a, powers[0]);
+    for (int i = 0; i < 4; i++) {
+        res = mul(res, powers[i]);
+        for (int j = 0; j < squares2[i]; j++) {
             res = mul(res, res);
         }
-        res = mul(res, old_res);
     }
-    return mul(res, a);
+    res = mul(res, powers[4]);
+
+    return mul(res, res);
 }
 
 void inverses(uint64_t values[], int n, uint64_t inverses[]) {

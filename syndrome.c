@@ -32,12 +32,13 @@ uint64_t* find_odd_syndromes(uint64_t set[], int n, int syndromes_to_calc) {
 void reconstruct_all_syndromes(uint64_t odd_syndromes[], int n, uint64_t all_syndromes[]) {
     for (int i = 0; i < n; i++) {
         all_syndromes[i*2] = odd_syndromes[i];
-        all_syndromes[i*2+1] = mul(odd_syndromes[i], odd_syndromes[i]);
+        all_syndromes[i*2+1] = mul(all_syndromes[i], all_syndromes[i]);
     }
 }
 
-void decode_syndromes(uint64_t syndromes[], int n, uint64_t lambdas[]) {
+void decode_syndromes(uint64_t syndromes[], int n, uint64_t error_loc_poly[]) {
     assert(~(n&1));
+    assert(n <= 1024);
     int low_dim = n / 2;
     uint64_t A[low_dim][low_dim + 1];
     for (int i = 0; i < low_dim; i++) {
@@ -62,31 +63,39 @@ void decode_syndromes(uint64_t syndromes[], int n, uint64_t lambdas[]) {
         echelon_elements[i] = A[i][i];
     }
 
+    // multiply echelons
+    for (int i = 1; i < low_dim; i++) {
+        for (int j = 0; j < i; j++)
+            echelon_elements[j] = mul(echelon_elements[j], echelon_elements[i]);
+    }
+
     uint64_t echelon_inversions[low_dim];
     inverses(echelon_elements, low_dim, echelon_inversions);
 
     for (int i = 0; i < low_dim; i++) {
-        lambdas[i] = mul(echelon_inversions[i], A[i][low_dim]);
+        error_loc_poly[i + 1] = mul(echelon_inversions[low_dim - i - 1], A[low_dim - i - 1][low_dim]);
     }
+    error_loc_poly[0] = 1;
 }
 
-
-void measure_syn_time(int set_size, int tries) {
-    int errors = set_size;
-    uint64_t* set = malloc(set_size);
-    
-    int n = 100000;
-    double total_times = 0;
-    clock_t start, end;
-    for (int try = 0; try < tries; try++) {
-        start = clock() ;
-        for (int i = 0; i < n; i++) {
-            set = find_odd_syndromes(set, set_size, errors);
-            
-        }
-        end = clock();
-        double elapsed_time = (end-start)/(double)CLOCKS_PER_SEC ;
-        total_times += n / elapsed_time;
+// Horner
+uint64_t eval_in_poly(uint64_t poly[], int size, uint64_t x0) {
+    uint64_t res = poly[0];
+    for (int i = 1 ; i < size; i++) {
+        res = poly[i] ^ mul(res, x0);
     }
-    printf("Average syndromes times per 1 second: %llu\n", (uint64_t)(total_times / tries));
+    return res;
+}
+
+uint64_t* find_diff(uint64_t error_loc_poly[], int size1, uint64_t candidates[], int size2, int* diffs_found){
+    uint64_t* res = malloc(size2 * sizeof(uint64_t));
+    int count = 0;
+    for (int i = 0; i < size2; i++) {
+        if (eval_in_poly(error_loc_poly, size1, candidates[i]) != 0) {
+            res[count] = candidates[i];
+            count++;
+        }
+    }
+    diffs_found = &count;
+    return realloc(res, count * sizeof(uint64_t));
 }
