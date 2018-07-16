@@ -109,11 +109,10 @@ void measure_square_time(int tries) {
     printf("Average squaring times per 1 second: %llu\n", (uint64_t)(total_times / tries));
 }
 
-
 void measure_calc_syn_time(int set_size, int tries) {
     int errors = set_size;
     uint64_t* set = generate_random_set(set_size);
-
+    
     double total_times = 0;
     double elapsed_time = 0;
     clock_t start, end;
@@ -130,13 +129,14 @@ void measure_calc_syn_time(int set_size, int tries) {
 
 void measure_decode_syn_time(int set_size, int tries) {
     int errors = set_size;
-    uint64_t syndromes[set_size];
-    uint64_t error_loc_poly[set_size + 1];
-
+    int n_syndromes = errors * 2;
+    uint64_t syndromes[n_syndromes];
+    uint64_t error_loc_poly[errors + 1];
+    
     uint64_t* sender_set = generate_random_set(set_size);
     uint64_t* client_set = generate_random_set(set_size);
     uint64_t* odd_syndromes = find_odd_syndromes(sender_set, set_size, errors);
-
+    
     int diffs_found;
     double total_times = 0;
     clock_t start, end;
@@ -144,18 +144,18 @@ void measure_decode_syn_time(int set_size, int tries) {
     
     for (int try = 0; try < tries; try++) {
         start = clock() ;
-
-        reconstruct_all_syndromes(odd_syndromes, set_size / 2, syndromes);
-        decode_syndromes(syndromes, set_size, error_loc_poly);
-        uint64_t* diff = find_diff(error_loc_poly, set_size + 1, client_set, set_size, &diffs_found);
+        
+        reconstruct_all_syndromes(odd_syndromes, n_syndromes / 2, syndromes);
+        decode_syndromes(syndromes, n_syndromes / 2, error_loc_poly);
+        uint64_t* diff = find_diff(error_loc_poly, errors + 1, client_set, set_size, &diffs_found);
         end = clock();
         elapsed_time = (end-start)/(double)CLOCKS_PER_SEC ;
         total_times += elapsed_time;
-
+        
         assert(diff);
         client_set = generate_random_set(set_size);
         sender_set = generate_random_set(set_size);
-
+        
     }
     printf("Average execution time for decoding syndromes (receiver side): %f\n", total_times / tries);
 }
