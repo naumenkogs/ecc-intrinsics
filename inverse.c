@@ -24,13 +24,12 @@ uint64_t inverse(uint64_t a) {
         }
     }
     res = mul(res, powers[4]);
-
     return mul(res, res);
 }
 
 void inverses(uint64_t values[], int n, uint64_t inverses[]) {
     // products: [a, ab, abc, abcd, ...]
-    uint64_t products[n];
+    static uint64_t products[MAX_DEGREE];
     products[0] = values[0];
     for (int i = 1; i < n; i++)
         products[i] = mul(products[i-1], values[i]);

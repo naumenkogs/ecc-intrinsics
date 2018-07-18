@@ -9,16 +9,16 @@
 
 // n — set length
 uint64_t* find_odd_syndromes(uint64_t set[], int n, int syndromes_to_calc) {
-    uint64_t matr[2][n];
+    static uint64_t matr[2][MAX_DEGREE];
     uint64_t* result = calloc(syndromes_to_calc, sizeof(uint64_t));
-
+    
     // init matrix with power 1 and 2, calc first syndrome
     for (int j = 0; j < n; j++) {
         matr[0][j] = set[j];
         matr[1][j] = mul(set[j], set[j]);
         result[0] ^= matr[0][j];
     }
-
+    
     for (int i = 1; i < syndromes_to_calc; i++)
     {
         for (int j = 0; j < n; j++) {
@@ -36,18 +36,18 @@ void reconstruct_all_syndromes(uint64_t odd_syndromes[], int n, uint64_t all_syn
     }
 }
 
-void decode_syndromes(uint64_t syndromes[], int n, uint64_t error_loc_poly[]) {
+void decode_syndromesPGZ(uint64_t syndromes[], int n, uint64_t error_loc_poly[]) {
     assert(~(n&1));
-    assert(n <= 1024);
+    assert(n <= MAX_DEGREE);
+    static uint64_t A[MAX_DEGREE][MAX_DEGREE];
     int low_dim = n / 2;
-    uint64_t A[low_dim][low_dim + 1];
     for (int i = 0; i < low_dim; i++) {
         for (int j = 0; j < low_dim + 1; j++) {
             A[i][j] = syndromes[i+j];
         }
     }
-
-    uint64_t echelon_elements[low_dim];
+    
+    static uint64_t echelon_elements[MAX_DEGREE];
     // {i,i} — echelon
     for (int i = 0; i < low_dim; i++) {
         // rows we want to get 0 in
@@ -62,16 +62,16 @@ void decode_syndromes(uint64_t syndromes[], int n, uint64_t error_loc_poly[]) {
         }
         echelon_elements[i] = A[i][i];
     }
-
+    
     // multiply echelons
     for (int i = 1; i < low_dim; i++) {
         for (int j = 0; j < i; j++)
             echelon_elements[j] = mul(echelon_elements[j], echelon_elements[i]);
     }
-
-    uint64_t echelon_inversions[low_dim];
+    
+    static uint64_t echelon_inversions[MAX_DEGREE];
     inverses(echelon_elements, low_dim, echelon_inversions);
-
+    
     for (int i = 0; i < low_dim; i++) {
         error_loc_poly[i + 1] = mul(echelon_inversions[low_dim - i - 1], A[low_dim - i - 1][low_dim]);
     }
@@ -98,4 +98,77 @@ uint64_t* find_diff(uint64_t error_loc_poly[], int size1, uint64_t candidates[],
     }
     diffs_found = &count;
     return realloc(res, count * sizeof(uint64_t));
+}
+
+
+
+static inline void pzero(int degree, uint64_t dst[]) {
+    for (int i = 0; i < degree; i++) {
+        dst[i] = 0;
+    }
+}
+
+static inline void pcopy(int degree, uint64_t dst[], uint64_t src[]) {
+    for (int i = 0; i < degree; i++) {
+        dst[i] = src[i];
+    }
+}
+
+static inline void pshift(int degree, uint64_t dst[], const uint64_t src[]) {
+    for (int i = degree - 1; i > 0; i--) {
+        dst[i] = src[i - 1];
+    }
+    dst[0] = 0;
+}
+
+
+static void pmul(int degree, uint64_t dst[], const uint64_t x[], const uint64_t y[]) {
+    for (int i = 0; i < degree; i++) {
+        dst[i] = 0;
+    }
+    for (int shift = 0; shift < degree; shift++) {
+        for (int i = 0; i + shift < degree; i++) {
+            dst[i + shift] ^= mul(x[i], y[shift]);
+        }
+    }
+}
+
+static void init_gamma(int degree, uint64_t gamma[], int codelen) {
+    pzero(degree, gamma);
+    gamma[0] = 1;
+}
+
+static inline uint64_t compute_discrepancy(const uint64_t lambda[], const uint64_t S[], int L, int n) {
+    uint64_t sum = 0;
+    for (int i = 0; i <= L; i++) {
+        sum ^= mul(lambda[i], S[n - i]);
+    }
+    return sum;
+}
+
+void decode_syndromesBM(uint64_t syndromes[], int N, uint64_t lambda[], int codelen) {
+    static uint64_t D[MAX_DEGREE];
+    init_gamma(2 * N, lambda, codelen);
+    pshift(2 * N, D, lambda);
+    int k = -1, L = 0;
+    for (int n = 0; n < N; n++) {
+        uint64_t d = compute_discrepancy(lambda, syndromes, L, n);
+        if (d != 0) {
+            static uint64_t lambda2[MAX_DEGREE];
+            for (int i = 0; i < 2 * N; i++) {
+                lambda2[i] = lambda[i] ^ mul(D[i], d);
+            }
+            if (L < n - k) {
+                int L2 = n - k;
+                k = n - L;
+                uint64_t d_inv = inverse(d);
+                for (int i = 0; i < 2 * N; i++) {
+                    D[i] = mul(lambda[i], d_inv);
+                }
+                L = L2;
+            }
+            pcopy(2 * N, lambda, lambda2);
+        }
+        pshift(2 * N, D, D);
+    }
 }

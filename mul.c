@@ -21,7 +21,6 @@ uint64_t mul(uint64_t a, uint64_t b) {
     return reduce(product);
 }
 
-
 uint64_t square(uint64_t a) {
     const uint64_t SQUARE_MASK = 0x0AAAAAAAAAAAAAAAAULL >> 1;
     uint64_t low_a = _pdep_u64(a, SQUARE_MASK);
@@ -29,5 +28,3 @@ uint64_t square(uint64_t a) {
     __m128i a1 = _mm_set_epi64x(high_a, low_a);
     return reduce(a1);
 }
-
-
