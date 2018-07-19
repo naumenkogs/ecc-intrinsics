@@ -44,7 +44,7 @@ void test_square() {
 }
 
 uint64_t* generate_random_set(int n) {
-    uint64_t* res = malloc(n * sizeof(uint64_t));
+    uint64_t* res = malloc(sizeof(uint64_t) * n);
     for (int i = 0; i < n; i++)
         res[i] = rand() * rand();
     return res;
@@ -87,8 +87,8 @@ void measure_square_time(int tries) {
     printf("Average squaring times per 1 second: %llu\n", (uint64_t)(total_times / tries));
 }
 
-void measure_calc_syn_time(int set_size, int tries) {
-    int errors = set_size;
+void measure_calc_syn_time(int set_size, int max_errors, int tries) {
+    assert(max_errors < set_size * 2);
     uint64_t* set = generate_random_set(set_size);
     
     double total_times = 0;
@@ -96,7 +96,7 @@ void measure_calc_syn_time(int set_size, int tries) {
     clock_t start, end;
     for (int try = 0; try < tries; try++) {
         start = clock() ;
-        set = find_odd_syndromes(set, set_size, errors);
+        set = find_odd_syndromes(set, set_size, max_errors / 2);
         end = clock();
         elapsed_time = (end-start)/(double)CLOCKS_PER_SEC ;
         total_times += elapsed_time;
@@ -105,17 +105,16 @@ void measure_calc_syn_time(int set_size, int tries) {
     printf("Average execution time for calc syndromes (sender side): %f\n", total_times / tries);
 }
 
-void measure_decode_syn_time(int set_size, int tries) {
-    int errors = set_size;
-    int syndromes = errors * 2;
-    uint64_t all_syndromes[syndromes];
-    uint64_t error_loc_poly[MAX_DEGREE];
+void measure_decode_syn_time(int set_size, int max_errors, int errors, int tries) {
+    int syndromes = max_errors * 2;
+    assert(errors <= max_errors);
+    assert(errors % 2 == 0);
     
-    uint64_t* sender_set = generate_random_set(set_size);
-    uint64_t* client_set = generate_random_set(set_size);
-    uint64_t* odd_syndromes = find_odd_syndromes(sender_set, set_size, errors);
+    uint64_t sender_syndromes[syndromes];
+    uint64_t receiver_syndromes[syndromes];
+    static uint64_t error_loc_poly[MAX_DEGREE];
     
-    int diffs_found;
+    int diffs_found = 0;
     double total_times = 0;
     clock_t start, after1, after2, end;
     double elapsed_time = 0;
@@ -125,27 +124,35 @@ void measure_decode_syn_time(int set_size, int tries) {
     double total_time_find_diff = 0;
     
     for (int try = 0; try < tries; try++) {
+        uint64_t* receiver_set = generate_random_set(set_size);
+        uint64_t* sender_set = generate_random_set(set_size);
+        memcpy(receiver_set, sender_set, (set_size - errors / 2) * sizeof(uint64_t));
+        uint64_t* sender_odd_syndromes = find_odd_syndromes(sender_set, set_size, syndromes / 2);
+        uint64_t* receiver_odd_syndromes = find_odd_syndromes(receiver_set, set_size, syndromes / 2);
+
+        reconstruct_all_syndromes(receiver_odd_syndromes, syndromes / 2, receiver_syndromes);
         start = clock();
-        reconstruct_all_syndromes(odd_syndromes, syndromes / 2, all_syndromes);
+        reconstruct_all_syndromes(sender_odd_syndromes, syndromes / 2, sender_syndromes);
+        
         after1 = clock();
         total_time_reconstruct += (after1-start)/(double)CLOCKS_PER_SEC;
+
+        uint64_t* diff_syndromes = xor_sets(receiver_syndromes, sender_syndromes, syndromes);
         
-        decode_syndromesBM(all_syndromes, syndromes, error_loc_poly, errors);
-        
+        decode_syndromesBM(diff_syndromes, syndromes, error_loc_poly, max_errors);
         after2 = clock();
         total_time_decode += (after2-after1)/(double)CLOCKS_PER_SEC;
-        uint64_t* diff = find_diff(error_loc_poly, errors + 1, client_set, set_size, &diffs_found);
+        uint64_t* diff = find_diff(error_loc_poly, max_errors + 1, receiver_set, set_size, &diffs_found);
         end = clock();
         total_time_find_diff += (end-after2)/(double)CLOCKS_PER_SEC;
         total_times += elapsed_time;
         
         assert(error_loc_poly);
         assert(diff);
-        for (int i = 0; i < set_size; i++) {
-            assert(client_set[i] == diff[i]);
+        assert(diffs_found * 2 == errors);
+        for (int i = 0; i < diffs_found; i++) {
+            assert(diff[i] == receiver_set[set_size - (errors / 2) + i]);
         }
-        client_set = generate_random_set(set_size);
-        sender_set = generate_random_set(set_size);
         
     }
     printf("Average execution time for reconstructing syndromes (receiver side): %f\n", total_time_reconstruct / tries);
@@ -156,9 +163,9 @@ void measure_decode_syn_time(int set_size, int tries) {
 void test_full_bch() {
     int tries = 100;
     int set_size = 100;
-    int syndromes = set_size * 2;
-    int errors = set_size / 10;
-    
+    int errors = set_size;
+    int syndromes = errors * 2;
+
     uint64_t* odd_syndromes;
     uint64_t all_syndromes[syndromes];
     uint64_t error_loc_poly[MAX_DEGREE];
@@ -171,12 +178,12 @@ void test_full_bch() {
         decode_syndromesPGZ(all_syndromes, syndromes, error_loc_poly);
         decode_syndromesBM(all_syndromes, syndromes, error_loc_poly2, errors);
         
-        for (int i = 0; i < syndromes / 2 + 1; i++) {
+        for (int i = 0; i < errors + 1; i++) {
             assert(error_loc_poly2[i] == error_loc_poly[i]);
         }
         
         for (int j = 0; j < set_size; j++) {
-            uint64_t res = eval_in_poly(error_loc_poly, syndromes / 2 + 1, set[j]);
+            uint64_t res = eval_in_poly(error_loc_poly, errors + 1, set[j]);
             assert(res == 0);
         }
     }

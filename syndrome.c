@@ -36,6 +36,14 @@ void reconstruct_all_syndromes(uint64_t odd_syndromes[], int n, uint64_t all_syn
     }
 }
 
+uint64_t* xor_sets(uint64_t basic_set[], uint64_t add_set[], int n) {
+    uint64_t* res = malloc(sizeof(uint64_t) * n);
+    for (int i = 0; i < n; i++)
+        res[i] = basic_set[i] ^ add_set[i];
+    return res;
+}
+
+
 void decode_syndromesPGZ(uint64_t syndromes[], int n, uint64_t error_loc_poly[]) {
     assert(~(n&1));
     assert(n <= MAX_DEGREE);
@@ -87,16 +95,17 @@ uint64_t eval_in_poly(uint64_t poly[], int size, uint64_t x0) {
     return res;
 }
 
+
 uint64_t* find_diff(uint64_t error_loc_poly[], int size1, uint64_t candidates[], int size2, int* diffs_found){
-    uint64_t* res = malloc(size2 * sizeof(uint64_t));
+    uint64_t* res = malloc(size1 * sizeof(uint64_t));
     int count = 0;
     for (int i = 0; i < size2; i++) {
-        if (eval_in_poly(error_loc_poly, size1, candidates[i]) != 0) {
+        if (eval_in_poly(error_loc_poly, size1, candidates[i]) == 0) {
             res[count] = candidates[i];
             count++;
         }
     }
-    diffs_found = &count;
+    *diffs_found = count;
     return realloc(res, count * sizeof(uint64_t));
 }
 
