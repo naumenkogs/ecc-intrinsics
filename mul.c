@@ -28,3 +28,8 @@ uint64_t square(uint64_t a) {
     __m128i a1 = _mm_set_epi64x(high_a, low_a);
     return reduce(a1);
 }
+
+uint64_t sqrt(uint64_t a) {
+    for (int i = 0; i < 63; ++i) a = square(a);
+    return a;
+}

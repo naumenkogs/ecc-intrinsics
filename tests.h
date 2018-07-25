@@ -1,9 +1,10 @@
-void test_inv_mul();
-void test_inverses();
-void test_square();
-void test_full_bch();
+void TestInvMul();
+void TestInverses();
+void TestSquare();
+void TestFullBCH();
+void TestFindRoots();
 
-void measure_mul_time(int tries);
-void measure_square_time(int tries);
-void measure_calc_syn_time(int set_size, int max_errors, int tries);
-void measure_decode_syn_time(int set_size, int max_differences, int different_elements, int tries);
+void MeasureMulTime(int tries);
+void MeasureSquareTime(int tries);
+void MeasureCalcSynTime(int set_size, int max_errors, int tries);
+void MeasureDecodeSynTime(int set_size, int max_differences, int different_elements, int tries);

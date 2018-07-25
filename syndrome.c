@@ -8,17 +8,15 @@
 #include "syndrome.h"
 
 // n — set length
-uint64_t* find_odd_syndromes(uint64_t set[], int n, int syndromes_to_calc) {
+void find_odd_syndromes(uint64_t set[], int n, int syndromes_to_calc, uint64_t result[]) {
     static uint64_t matr[2][MAX_DEGREE];
-    uint64_t* result = calloc(syndromes_to_calc, sizeof(uint64_t));
     
     // init matrix with power 1 and 2, calc first syndrome
     for (int j = 0; j < n; j++) {
         matr[0][j] = set[j];
         matr[1][j] = mul(set[j], set[j]);
         result[0] ^= matr[0][j];
-    }
-    
+    }    
     for (int i = 1; i < syndromes_to_calc; i++)
     {
         for (int j = 0; j < n; j++) {
@@ -26,7 +24,6 @@ uint64_t* find_odd_syndromes(uint64_t set[], int n, int syndromes_to_calc) {
             result[i] ^= matr[0][j];
         }
     }
-    return result;
 }
 
 void reconstruct_all_syndromes(uint64_t odd_syndromes[], int n, uint64_t all_syndromes[]) {
@@ -36,11 +33,10 @@ void reconstruct_all_syndromes(uint64_t odd_syndromes[], int n, uint64_t all_syn
     }
 }
 
-uint64_t* xor_sets(uint64_t basic_set[], uint64_t add_set[], int n) {
-    uint64_t* res = malloc(sizeof(uint64_t) * n);
+
+void xor_sets(uint64_t basic_set[], uint64_t add_set[], int n, uint64_t res[]) {
     for (int i = 0; i < n; i++)
         res[i] = basic_set[i] ^ add_set[i];
-    return res;
 }
 
 
@@ -97,7 +93,7 @@ uint64_t eval_in_poly(uint64_t poly[], int size, uint64_t x0) {
 
 
 uint64_t* find_diff(uint64_t error_loc_poly[], int size1, uint64_t candidates[], int size2, int* diffs_found){
-    uint64_t* res = malloc(size1 * sizeof(uint64_t));
+    uint64_t* res = new uint64_t[size1]();
     int count = 0;
     for (int i = 0; i < size2; i++) {
         if (eval_in_poly(error_loc_poly, size1, candidates[i]) == 0) {
@@ -106,8 +102,9 @@ uint64_t* find_diff(uint64_t error_loc_poly[], int size1, uint64_t candidates[],
         }
     }
     *diffs_found = count;
-    return realloc(res, count * sizeof(uint64_t));
+    return (uint64_t*)realloc(res, count * sizeof(uint64_t));
 }
+
 
 
 
@@ -128,18 +125,6 @@ static inline void pshift(int degree, uint64_t dst[], const uint64_t src[]) {
         dst[i] = src[i - 1];
     }
     dst[0] = 0;
-}
-
-
-static void pmul(int degree, uint64_t dst[], const uint64_t x[], const uint64_t y[]) {
-    for (int i = 0; i < degree; i++) {
-        dst[i] = 0;
-    }
-    for (int shift = 0; shift < degree; shift++) {
-        for (int i = 0; i + shift < degree; i++) {
-            dst[i + shift] ^= mul(x[i], y[shift]);
-        }
-    }
 }
 
 static void init_gamma(int degree, uint64_t gamma[], int codelen) {

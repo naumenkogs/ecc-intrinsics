@@ -1,8 +1,8 @@
 #include <inttypes.h>
 
-uint64_t* find_odd_syndromes(uint64_t set[], int n, int syndromes_to_calc);
+void find_odd_syndromes(uint64_t set[], int n, int syndromes_to_calc, uint64_t result[]);
 void reconstruct_all_syndromes(uint64_t* odd_syndromes, int n, uint64_t* all_syndromes);
-uint64_t* xor_sets(uint64_t basic_set[], uint64_t add_set[], int n);
+void xor_sets(uint64_t basic_set[], uint64_t add_set[], int n, uint64_t result[]);
 
 // Peterson–Gorenstein–Zierler algorithm (slower)
 void decode_syndromesPGZ(uint64_t* syndromes, int n, uint64_t* error_loc_poly);
